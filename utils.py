@@ -2,12 +2,16 @@ import os
 from typing import Dict
 
 
-def parse_quiz_file(quiz_file_name: str) -> Dict[int, Dict[str, str]]:
+def parse_quiz_file(file_path: str) -> Dict[int, Dict[str, str]]:
     """Сортирует файл с вопросами и возваращает актуальный вопрос с ответом"""
-
     current_directory = os.path.dirname(os.path.abspath(__file__))
-    with open(f"{current_directory}/quiz-questions/{quiz_file_name}", "r", encoding="KOI8-R") as quiz_file:
-        content_of_quiz_file = quiz_file.read()
+
+    if file_path:
+        with open(f"{current_directory}/quiz-questions/{file_path}", "r", encoding="KOI8-R") as quiz_file:
+            content_of_quiz_file = quiz_file.read()
+    else:
+        with open(f"{current_directory}/quiz-questions/1vs1200.txt", "r", encoding="KOI8-R") as quiz_file:
+            content_of_quiz_file = quiz_file.read()
 
     questions = {}
     current_question = None

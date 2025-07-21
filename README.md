@@ -64,6 +64,7 @@ TELEGRAM_BOT_TOKEN=ваш-токен-telegram-бота
 VK_BOT_TOKEN=ваш-токен-vk-бота
 REDIS_HOST=ваш-хост-redis
 REDIS_PASSWORD=ваш-пароль-redis
+REDIS_PORT=ваш-порт-redis
 ADMIN_CHAT_ID_VK=ваш-id-чата-администратора-vk
 ```
 
@@ -76,14 +77,16 @@ ADMIN_CHAT_ID_VK=ваш-id-чата-администратора-vk
 <strong>1. Запустите Telegram бот:</strong>
 
 ```shell
-python tg_bot.py
+python tg_bot.py --file <ПУТЬ/К/ВАШЕМУ/ФАЙЛУ/С/ВОПРОСАМИ/>
 ```
-
-<strong> 1. Запустите VK бот:</strong>
 
 ```shell
-python vk_bot.py
+python vk_bot.py --file <ПУТЬ/К/ВАШЕМУ/ФАЙЛУ/С/ВОПРОСАМИ/
 ```
+
+**_NOTE:_**
+Ваш файл с вопросами должен лежать внутри директории <strong>quiz-questions</strong> </br>
+<strong> 1. Запустите VK бот:</strong>
 
 ---
 
