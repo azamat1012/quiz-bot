@@ -208,3 +208,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+quiz-questions
+.quiz-questions
+quiz-questions/*.txt
+.quiz-questions/*.txt
