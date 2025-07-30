@@ -7,10 +7,10 @@ def parse_quiz_file(file_path: str) -> Dict[int, Dict[str, str]]:
     current_directory = os.path.dirname(os.path.abspath(__file__))
 
     if file_path:
-        with open(f"{current_directory}/quiz-questions/{file_path}", "r", encoding="utf") as quiz_file:
+        with open(f"{current_directory}/quiz-questions/{file_path}", "r", encoding="KOI8-R") as quiz_file:
             content_of_quiz_file = quiz_file.read()
     else:
-        with open(f"{current_directory}/quiz-questions/1vs1200.txt", "r", encoding="utf") as quiz_file:
+        with open(f"{current_directory}/quiz-questions/1vs1200.txt", "r", encoding="KOI8-R") as quiz_file:
             content_of_quiz_file = quiz_file.read()
 
     questions = {}
