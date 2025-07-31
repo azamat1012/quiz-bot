@@ -20,7 +20,7 @@ def is_give_up_command(message):
     return message.text == "/Сдаться"
 
 
-def is_my_score_command(message):
+def is_score_command(message):
     return message.text == "/Мой_счет"
 
 

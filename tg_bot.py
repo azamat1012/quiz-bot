@@ -8,33 +8,13 @@ from dotenv import load_dotenv
 import redis
 from telebot import TeleBot
 
-
 from keyboards import (
     tg_keyboard, is_new_question_command,
-    is_my_score_command, is_give_up_command
+    is_score_command, is_give_up_command
 )
 from utils import parse_quiz_file
 
-
 logger = logging.getLogger(__name__)
-
-
-def setup_logging():
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s'
-    )
-    logger.info("Бот запущен")
-
-
-def initialize_redis():
-    return redis.Redis(
-        host=os.environ["REDIS_HOST"],
-        port=os.environ["REDIS_PORT"],
-        decode_responses=True,
-        username="default",
-        password=os.environ["REDIS_PASSWORD"],
-    )
 
 
 def handle_start_command(bot, redis_db, message):
@@ -54,9 +34,8 @@ def handle_start_command(bot, redis_db, message):
         logger.error(e)
 
 
-def handle_new_question_command(bot, redis_db, file_path, message):
+def handle_new_question_command(bot, redis_db, questions_dictionary, message):
     try:
-        questions_dictionary = parse_quiz_file(file_path)
         questions_limit = len(questions_dictionary)
         random_question = questions_dictionary[random.randint(
             0, questions_limit)]
@@ -105,7 +84,7 @@ def handle_user_answer(bot, redis_db, message):
         logging.exception()
 
 
-def handle_give_up_command(bot, redis_db, file_path, message):
+def handle_give_up_command(bot, redis_db, questions_dictionary, message):
     try:
         tg_id = str(message.chat.id)
         username = message.from_user.username
@@ -122,7 +101,6 @@ def handle_give_up_command(bot, redis_db, file_path, message):
         bot.send_message(tg_id, f"✅ Правильный ответ был: {correct_answer}")
 
         # Новый вопрос
-        questions_dictionary = parse_quiz_file(file_path)
         questions_limit = len(questions_dictionary)
         random_question = questions_dictionary[random.randint(
             0, questions_limit)]
@@ -138,7 +116,7 @@ def handle_give_up_command(bot, redis_db, file_path, message):
         logging.exception()
 
 
-def handle_my_score_command(bot, redis_db, message):
+def handle_score_command(bot, redis_db, message):
     try:
         tg_id = str(message.chat.id)
         username = message.from_user.username
@@ -149,44 +127,68 @@ def handle_my_score_command(bot, redis_db, message):
         logging.exception()
 
 
-def setup_bot_handlers(bot, redis_db, file_path="1vs1200.txt"):
-    @bot.message_handler(commands=['start'])
-    def start_wrapper(message):
-        handle_start_command(bot, redis_db, message)
+def handle_start_message(bot, redis_db, message):
+    return handle_start_command(bot, redis_db, message)
 
-    @bot.message_handler(func=is_new_question_command)
-    def new_question_wrapper(message):
-        handle_new_question_command(bot, redis_db, file_path, message)
 
-    @bot.message_handler(func=lambda message: not message.text.startswith('/'))
-    def user_answer_wrapper(message):
-        handle_user_answer(bot, redis_db, message)
+def handle_new_question_message(bot, redis_db, questions_dictionary, message):
+    return handle_new_question_command(bot, redis_db, questions_dictionary, message)
 
-    @bot.message_handler(func=is_give_up_command)
-    def give_up_wrapper(message):
-        handle_give_up_command(bot, redis_db, file_path, message)
 
-    @bot.message_handler(func=is_my_score_command)
-    def my_score_wrapper(message):
-        handle_my_score_command(bot, redis_db, message)
+def handle_user_answer_message(bot, redis_db, message):
+    return handle_user_answer(bot, redis_db, message)
+
+
+def handle_give_up_message(bot, redis_db, questions_dictionary, message):
+    return handle_give_up_command(bot, redis_db, questions_dictionary, message)
+
+
+def handle_my_score_message(bot, redis_db, message):
+    return handle_score_command(bot, redis_db, message)
+
+
+def setup_bot_handlers(bot, redis_db, questions_dictionary):
+    bot.message_handler(commands=['start'])(
+        lambda message: handle_start_message(bot, redis_db, message))
+    bot.message_handler(func=is_new_question_command)(
+        lambda message: handle_new_question_message(bot, redis_db, questions_dictionary, message))
+    bot.message_handler(func=lambda message: not message.text.startswith(
+        '/'))(lambda message: handle_user_answer_message(bot, redis_db, message))
+    bot.message_handler(func=is_give_up_command)(
+        lambda message: handle_give_up_message(bot, redis_db, questions_dictionary, message))
+    bot.message_handler(func=is_score_command)(
+        lambda message: handle_my_score_message(bot, redis_db, message))
 
 
 def main():
-    setup_logging()
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+    logger.info("Бот запущен")
+
     load_dotenv()
 
     telegram_bot_token = os.environ["TELEGRAM_BOT_TOKEN"]
     bot = TeleBot(telegram_bot_token)
-    redis_db = initialize_redis()
+    redis_db = redis.Redis(
+        host=os.environ["REDIS_HOST"],
+        port=os.environ["REDIS_PORT"],
+        decode_responses=True,
+        username="default",
+        password=os.environ["REDIS_PASSWORD"],
+    )
 
     parser = argparse.ArgumentParser(description="Парсит файл для квиза")
     parser.add_argument(
-        "--file", help="Название файла для парсинга",  default="")
+        "--file", help="Название файла для парсинга", default="")
     args = parser.parse_args()
 
     file_path = args.file
+    questions_dictionary = parse_quiz_file(
+        file_path) if file_path else parse_quiz_file("1vs1200.txt")
 
-    setup_bot_handlers(bot, redis_db, file_path)
+    setup_bot_handlers(bot, redis_db, questions_dictionary)
     bot.polling()
 
 

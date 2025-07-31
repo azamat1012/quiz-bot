@@ -138,13 +138,43 @@ def handle_messages(event, vk_api, redis_db, questions_dictionary):
         logger.exception()
 
 
-def start_bot(vk_bot_token: str, admin_chat_id, redis_db: str, questions_dictionary: list):
+def start_bot(vk_bot_token: str, redis_db, questions_dictionary: list):
+    vk_session = vk.VkApi(token=vk_bot_token)
+    vk_api = vk_session.get_api()
+    logger.info(f"Бот активирован с токеном: {vk_bot_token[:5]}...")
+
+    long_poll = VkLongPoll(vk_session)
+    logger.info("Начинаю слушать события...")
+
+    for event in long_poll.listen():
+        if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+            logger.info(
+                f"Получен запрос от {event.user_id}: '{event.text}'")
+
+            handle_messages(event, vk_api, redis_db, questions_dictionary)
+
+
+def main():
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=logging.INFO
+    )
+    load_dotenv()
     try:
-        vk_session = vk.VkApi(token=vk_bot_token)
-        vk_api = vk_session.get_api()
-        logger.info(f"Бот активирован с токеном: {vk_bot_token[:5]}...")
+
+        vk_bot_token = os.environ['VK_BOT_TOKEN']
+        admin_chat_id = os.environ.get('ADMIN_CHAT_ID_VK')
+        redis_db = redis.Redis(
+            host=os.environ["REDIS_HOST"],
+            port=os.environ["REDIS_PORT"],
+            decode_responses=True,
+            username="default",
+            password=os.environ["REDIS_PASSWORD"],
+        )
 
         if admin_chat_id:
+            vk_session = vk.VkApi(token=vk_bot_token)
+            vk_api = vk_session.get_api()
             vk_handler = VkLogHandler(vk_api, admin_chat_id)
             vk_handler.setLevel(logging.INFO)
             formatter = logging.Formatter(
@@ -156,62 +186,20 @@ def start_bot(vk_bot_token: str, admin_chat_id, redis_db: str, questions_diction
         else:
             logger.info("ADMIN_CHAT_ID не указан, логи будут только в консоли")
 
-        long_poll = VkLongPoll(vk_session)
-        logger.info("Начинаю слушать события...")
-
-        for event in long_poll.listen():
-            if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-                logger.info(
-                    f"Получен запрос от {event.user_id}: '{event.text}'")
-
-                handle_messages(event, vk_api, redis_db, questions_dictionary)
-    except Exception:
-        logger.exception()
-        raise
-
-
-def initialize_redis():
-    return redis.Redis(
-        host=os.environ["REDIS_HOST"],
-        port=os.environ["REDIS_PORT"],
-        decode_responses=True,
-        username="default",
-        password=os.environ["REDIS_PASSWORD"],
-    )
-
-
-def main():
-    logging.basicConfig(
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        level=logging.INFO
-    )
-    load_dotenv()
-
-    vk_bot_token = os.environ['VK_BOT_TOKEN']
-    admin_chat_id = os.environ.get('ADMIN_CHAT_ID_VK')
-    redis_db = initialize_redis()
-
-    parser = argparse.ArgumentParser(
-        description="Парсит файл для квиза")
-    parser.add_argument(
-        "--file", help="Название файла для парсинга", required=True)
-    args = parser.parse_args()
-
-    if not vk_bot_token:
-        logging.error("VK_BOT_TOKEN не указан в переменных окружения")
-        return
-
-    try:
+        parser = argparse.ArgumentParser(
+            description="Парсит файл для квиза")
+        parser.add_argument(
+            "--file", help="Название файла для парсинга", required=True)
+        args = parser.parse_args()
         questions_dictionary = parse_quiz_file(args.file)
         logger.info(f"Загружено {len(questions_dictionary)} вопросов")
     except Exception as e:
-        logging.error(f"Ошибка при загрузке вопросов: {e}")
+        logging.error(f"Ошибка при зауске бота ВК: {e}")
         return
 
     while True:
         try:
-            start_bot(vk_bot_token, admin_chat_id,
-                      redis_db, questions_dictionary)
+            start_bot(vk_bot_token, redis_db, questions_dictionary)
         except Exception:
             logging.exception()
             sleep(5)
